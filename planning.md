@@ -15,9 +15,6 @@ I chose the domain of best restaurants to eat on and around campus at Georgia Te
 
 ## Documents
 
-<!-- List your specific sources: URLs, subreddit names, forum threads, or file descriptions.
-     Aim for at least 10 sources that together cover different subtopics or perspectives within your domain. -->
-
 | # | Source | Type | URL or file path |
 |---|--------|------|-----------------|
 | 1 |r/gatech thread (what are all the best food places on campus) | Online forum | https://www.reddit.com/r/gatech/comments/sitg69/what_are_all_the_best_food_places_on_campus/ |
@@ -36,88 +33,76 @@ I chose the domain of best restaurants to eat on and around campus at Georgia Te
 
 ## Chunking Strategy
 
-<!-- How will you split documents into chunks?
-     State your chunk size (in tokens or characters), overlap size, and explain why those
-     numbers fit the structure of your documents.
-     A review-heavy corpus warrants different chunking than a long FAQ. -->
-
 **Chunk size:**
+400 characters
 
 **Overlap:**
+50 characters
 
 **Reasoning:**
+A 400 character chunk size was chosen because analysis of the 10 sources revealed that they all had a similar format of individual entries (ie bulleted paragraphs for restaurants or yelp reviews) so a fixed size chunk would be best. The average size of the entries in the blogs is a bit over 400 characters so I chose 400 with an overlap of 50 to capture the longest entries and threads under comments on reddit so that context isn't lost. I believe this strategy will work best across all sources but may fail to accurately capture the results on reddit threads with short comments which could be a limitation. I got around that limitation by asking Claude to also split by paragraphs when possible and then implement the chunk size when entries are too big.
 
 ---
 
 ## Retrieval Approach
 
-<!-- Which embedding model are you using (e.g., all-MiniLM-L6-v2 via sentence-transformers)?
-     How many chunks will you retrieve per query (top-k)?
-     If you were deploying this for real users and cost wasn't a constraint, what tradeoffs
-     would you weigh in choosing a different embedding model — context length, multilingual
-     support, accuracy on domain-specific text, latency? -->
 
 **Embedding model:**
+I am choosing the all-MiniLM-L6-v2 via sentence-transformers reccomended by CodePath for simplicty as it runs locally and simpler connection and implementation allows me to focus on improving other parts of my guide. 
 
 **Top-k:**
+I chose a top-k of 5 initially because it is broad enough to handle slightly more complex queries while limiting irrelevant information to the queries being asked. Additionally, a top K that is too high may increase the response time and since the questions asked are supposed to be for students, we want to focus on quick and mostly accurate responses. 
 
 **Production tradeoff reflection:**
+If cost was no object I'd choose a model that could provide multilingual support, increase accuracy and decrease latency due to our target audience of students. Generally students are looking for quick answers to their questions which is the primary driver of wanting to decrease latency. Many students are international and looking for food options (such as options from their home country), making multilingual support and accuracy the next priorities. I would prioritize latency and multilingual support as the top two factors, as accuracy is important but less critical to our target audience than those two.
 
 ---
 
 ## Evaluation Plan
 
-<!-- List your 5 test questions with their expected correct answers.
-     Questions should be specific enough that you can judge whether the system's response
-     is right or wrong. "What are good dining halls?" is too vague.
-     "What do students say about wait times at [dining hall name] during lunch?" is testable. -->
 
 | # | Question | Expected answer |
 |---|----------|-----------------|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
+| 1 | What is the closest restaurant to the library? | Citation of the Odyssey article with blue donkey coffee  |
+| 2 | What is the most budget-friendly option for food near campus?| Citation of the first source and publix subs, blue donkey, or halal guys  |
+| 3 | What are the best pizza places around campus? | Antico's, Attwoods |
+| 4 | What restaurants are open late near campus?  | Waffle house, Taco bell, Lucky Buddha |
+| 5 | I want a sweet treat near campus, where could I go?  | Jeni's Ice cream, Sweet Hut|
 
 ---
 
 ## Anticipated Challenges
 
-<!-- What could go wrong? Name at least two specific risks with reasoning.
-     Consider: noisy or inconsistent documents, missing source attribution, off-topic
-     retrieval, chunks that split key information across boundaries. -->
 
-1.
+1. The chunk size may be too large for the reddit posts and therefore provide inconsistent information when compared to other sources. It may make false equivalencies between reddit comments in an attempt to match the chunk size. 
 
-2.
-
+2. Since some of the forum sources list some restaurants multiple times in comments (like TripAdvisor or Reddit), the results may prioritize those restaurants too much and not evenly attribute other sources of data, giving biased answers.
 ---
 
 ## Architecture
 
-<!-- Draw a diagram of your pipeline showing the five stages:
-     Document Ingestion → Chunking → Embedding + Vector Store → Retrieval → Generation
-     Label each stage with the tool or library you're using.
-     You can use ASCII art, a Mermaid diagram, or embed a sketch as an image.
-     You'll use this diagram as context when prompting AI tools to implement each stage. -->
 
+Document Ingestion (online sources)
+        ↓
+Chunking (200 chars, 50-char overlap)
+        ↓
+Embedding (sentence-transformers / all-MiniLM-L6-v2)
+        ↓
+Vector Store (ChromaDB)
+        ↓
+Retrieval (similarity search, top-k=5)
+        ↓
+Generation (browser-based interface)
 ---
 
 ## AI Tool Plan
 
-<!-- For each part of the pipeline below, describe:
-     - Which AI tool you plan to use (Claude, Copilot, ChatGPT, etc.)
-     - What you'll give it as input (which sections of this planning.md, which requirements)
-     - What you expect it to produce
-     - How you'll verify the output matches your spec
-
-     "I'll use AI to help me code" is not a plan.
-     "I'll give Claude my Chunking Strategy section and ask it to implement chunk_text()
-     with my specified chunk size and overlap" is a plan. -->
 
 **Milestone 3 — Ingestion and chunking:**
+I will give Claude my source list from planning.md, the requirements for cleaning up the data, and the chunking requirements of fixed-size chunks of 200 characters with 50-character overlap. I will ask it to create a python script that cleans up the text, chunks it using chunk_text() and my requirements and look at several of the chunk outputs to verify that the size is correct and looks consistent with my expectations.
 
 **Milestone 4 — Embedding and retrieval:**
+I will give Claude my embedding model of choice, my chunking requirements from planning,md and my retrieval requirements. I will ask it to create a py file that embeds each chunk, stores the subsequent embeddings using my preferred vector store (chromaDB) and does the search. I'll then test using my evaluation questions to see if the sources are correct and the chunks that are chosen are relevant to the questions.
 
 **Milestone 5 — Generation and interface:**
+I'll give Claude the guidelines for a basic UI that students can use to search for their questions. I will ask it for code for a browser based UI that can display an answer to the question asked using the top retrieved chunks and cite sources. I will test using my evaluation questions and try to throw edge case questions at the engine to ensure that the answers are accurate. I will also test the UI for basic usability, ensuring it is user-friendly.
