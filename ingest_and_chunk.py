@@ -40,8 +40,8 @@ from urllib.request import Request, urlopen
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-CHUNK_SIZE    = 500   # characters (from planning.md — updated from 200)
-CHUNK_OVERLAP = 25    # characters (from planning.md)
+CHUNK_SIZE    = 400   # characters (from planning.md — updated from 200)
+CHUNK_OVERLAP = 50    # characters (from planning.md)
 
 RAW_DIR    = Path("documents")
 CHUNKS_DIR = Path("chunks")
@@ -72,7 +72,7 @@ SOURCES = [
                "&find_loc=Georgia+Tech%2C+Atlanta%2C+GA",
     },
     {
-        "id": 4, "type": "blog", "name": "odyssey_best_places",
+        "id": 4, "type": "hardcoded", "name": "odyssey_best_places",
         "url": "https://www.theodysseyonline.com/best-places-to-eat-around-georgia-tech",
     },
     {
@@ -102,6 +102,46 @@ SOURCES = [
         "url": "https://atlanta.eater.com/maps/best-restaurants-bars-midtown-atlanta",
     },
 ]
+
+# ── Embedded Odyssey article (scraped 2026-06-08) ───────────────────────────
+# Hardcoded directly because the live page returns unrelated content via scraper.
+
+ODYSSEY_DATA = """\
+1. Highland Bakery
+From CULC: 5-minute walk (driving is unnecessary)
+
+I like to consider Highland Bakery a hidden gem on campus since it has a tiny sign by the door and is attached to the back of Tech Tower and the administration building. Despite its name, Highland Bakery has an extensive range of breakfast and lunch options beyond its bakery items and coffee drinks. For the morning, I would recommend the ricotta pancakes, which come with a warm blueberry compote. For lunch, I love the Caprese sandwich containing mozzarella, basil and tomatoes on grilled sourdough — an all-around delicious meal that comes with chips on the side.
+
+2. West Egg Cafe
+From CULC: 9-minute drive; 30-minute walk
+
+If you were to Google the best restaurants for brunch in Atlanta, West Egg Cafe is bound to be on the list. With a four-star rating and nearly 1,000 reviews on Yelp, this place in the Westside Provisions District attracts people from all over Atlanta. West Egg serves breakfast from 7 a.m. to 4 p.m. on weekdays and from 8 a.m. to 5 p.m. on weekends. I recommend their sour cream pancakes with chocolate chips or the pimiento cheese and bacon omelet. Their skillet potatoes are cooked with a delicious seasoning and maintain a pleasant chewiness. Be prepared to wait 30–45 minutes before being seated.
+
+3. Yeah! Burger in West Midtown
+From CULC: 9-minute drive; 30-minute walk
+
+This burger joint prides itself on wholesome food and sustainable values. The original Yeah! Burger and Mushroom Swiss burger are good choices, but you can also build your own burger by selecting from different options of patties, buns, cheeses, sauces and toppings. Their handspun milkshakes are also a must-try. They also have separate vegan and gluten-free menus.
+
+4. Jeni's Splendid Ice Creams
+From CULC: 9-minute drive; 30-minute walk
+
+Jeni's is located in the Westside Provisions District. As soon as you enter, you'll be confronted with the heavenly smell of creamy, delicious ice cream. You won't find typical vanilla, chocolate and strawberry flavors here — instead names such as Sweet Cream Biscuits and Peach Jam and Salted Peanut Butter with Chocolate Flecks. Favorites include Wildberry Lavender and Gooey Butter Cake. Seasonal flavors include Sweet Potato Eclair and Thai Curry Pumpkin.
+
+5. Atwood's Pizza
+From CULC: 6-minute drive; 16-minute walk
+
+Atwood's can be found at the corner of West Peachtree Street NW and 6th Street — walk past the Scheller College of Business, turn left at The Biltmore, and Atwood's is at the next intersection. The Tartufo pizza with mushrooms, fontina, gorgonzola and truffle oil is highly recommended. Their large size is perfect for splitting among two or three people.
+
+6. Blue Donkey Coffee
+From CULC: 4-minute walk (driving is unnecessary)
+
+Blue Donkey Coffee serves excellent iced coffee and is located on the first floor of the Student Center. Blue Donkey allows you to do a half-and-half iced coffee with two different flavors — a popular choice is half summer almond, half 365 (a bold, dark roast). A great alternative to Starbucks or Dunkin Donuts for students on campus.
+
+7. The French Truck
+From CULC: on campus, near Tech Green every Thursday at lunch
+
+The French Truck makes crepes to order and features both sweet and savory options. Sweet options include classic banana with Nutella. Savory options include a crepe with chicken, pesto, parmesan and arugula. The French Truck has a rotating menu and can be found around Tech Green every Thursday during typical lunch hours.
+"""
 
 # ── Embedded Reddit data (scraped 2026-06-08) ────────────────────────────────
 # Hardcoded directly to avoid Reddit API 403 errors.
@@ -335,6 +375,22 @@ def fetch_url(url: str, timeout: int = 15) -> Optional[str]:
 
 # ── Loaders ───────────────────────────────────────────────────────────────────
 
+def load_hardcoded(source: dict) -> Optional[str]:
+    """
+    Return the hardcoded article text for sources that can't be reliably
+    scraped (e.g. Odyssey, which returns unrelated content via HTTP).
+    """
+    data_map = {
+        "odyssey_best_places": ODYSSEY_DATA,
+    }
+    text = data_map.get(source["name"])
+    if text is None:
+        print(f"  ⚠  No hardcoded data found for {source['name']}")
+        return None
+    print(f"  ✓  Using hardcoded article data ({len(text):,} chars)")
+    return text
+
+
 def load_reddit(source: dict) -> Optional[str]:
     """
     Return Reddit thread text from the hardcoded REDDIT_DATA dict.
@@ -392,6 +448,8 @@ def load_source(source: dict) -> Optional[str]:
     t = source["type"]
     if t == "reddit":
         return load_reddit(source)
+    elif t == "hardcoded":
+        return load_hardcoded(source)
     elif t == "js_heavy":
         return load_js_heavy(source)
     else:
