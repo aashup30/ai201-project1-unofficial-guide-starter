@@ -40,8 +40,8 @@ from urllib.request import Request, urlopen
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-CHUNK_SIZE    = 400   # characters (from planning.md)
-CHUNK_OVERLAP = 50    # characters (from planning.md)
+CHUNK_SIZE    = 500   # characters (from planning.md — updated from 200)
+CHUNK_OVERLAP = 25    # characters (from planning.md)
 
 RAW_DIR    = Path("documents")
 CHUNKS_DIR = Path("chunks")
@@ -216,6 +216,16 @@ BOILERPLATE_PHRASES = [
     "previous article", "written by", "cover image credit",
     "powered by", "top creators", "best of", "keep reading",
     "show less", "load more", "view all", "see all",
+    # Generic article intro/outro sentences (not restaurant-specific content)
+    "we've curated", "we have curated", "we curated",
+    "in this article", "spotlighting", "earn the highest honors",
+    "student-approved", "from quick and casual", "from mexican to",
+    "from nearby kitchens", "these are some of the dining",
+    "some of the best restaurants", "here are some", "here are the best",
+    "we rounded up", "we put together", "we compiled",
+    "check out our list", "check out this list",
+    "without further ado", "let's dive in", "let's take a look",
+    "without further delay", "with that said",
 ]
 
 # When any of these appear in a line, truncate the document at that point.
@@ -437,6 +447,18 @@ def clean_text(raw: str) -> str:
         if len(stripped.split()) < 3 and not re.search(r"\d", stripped):
             continue
 
+        # Skip article title lines (e.g. "Best Places To Eat | The Odyssey Online")
+        if re.search(r"\|\s*(the odyssey|yelp|tripadvisor|eater|infatuation|atlanta eats|rambler)", lower):
+            continue
+
+        # Skip standalone page/article titles (digits-only year + "best ... near georgia tech")
+        if re.search(r"(best|top)\s+\d*\s*(restaurants?|places?|food).*(georgia tech|campus|midtown|atlanta).*(updated\s+\d{4})?", lower):
+            continue
+
+        # Skip lines that are just a source header (our manually added headers in .txt files)
+        if re.match(r"^(yelp:|tripadvisor forum:|source:)", lower):
+            continue
+
         clean_lines.append(stripped)
 
     text = "\n".join(clean_lines)
@@ -475,7 +497,7 @@ def _fixed_size_chunks(text: str, chunk_size: int, overlap: int) -> list[str]:
                     end = space
 
         chunk = text[start:end].strip()
-        if len(chunk) >= MIN_CHUNK_LEN:
+        if chunk and len(chunk) >= MIN_CHUNK_LEN:
             chunks.append(chunk)
 
         if at_end:
@@ -489,35 +511,59 @@ def _fixed_size_chunks(text: str, chunk_size: int, overlap: int) -> list[str]:
     return chunks
 
 
+# Matches numbered list entries like "1.", "2.", "1)", "2)" at the start of a line
+_NUMBERED_ENTRY = re.compile(r"(?m)^(?=\d{1,2}[\.\)][\s\S])", re.MULTILINE)
+
+# Matches blog section headers like "From CULC:", "Address:", restaurant name lines
+_SECTION_HEADER = re.compile(
+    r"(?m)^(from culc|address|hours|price|cuisine|rating|distance|located)[\s:—]",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _split_into_entries(text: str) -> list[str]:
+    """
+    Split blog/article text on numbered list boundaries (1. 2. 3. etc.).
+    Falls back to paragraph splitting if no numbered entries are found.
+    """
+    # Try splitting on numbered entries first
+    parts = _NUMBERED_ENTRY.split(text)
+    if len(parts) > 1:
+        return [p.strip() for p in parts if p.strip()]
+    # Fall back to paragraph splitting
+    return [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
+
+
 def chunk_text(text: str, chunk_size: int = CHUNK_SIZE,
                overlap: int = CHUNK_OVERLAP) -> list[str]:
     """
-    Paragraph-aware chunking with fixed-size fallback.
+    Structure-aware chunking pipeline:
 
-    1. Split on paragraph breaks (blank lines) and single line breaks.
-    2. If a paragraph fits within chunk_size, keep it as one chunk.
-    3. If a paragraph is too long, apply fixed-size chunking with overlap.
-    4. Drop anything shorter than MIN_CHUNK_LEN (nav fragments, etc.).
+    1. Split on numbered list entries (1. 2. 3.) — keeps each restaurant
+       blurb together as one semantic unit.
+    2. If no numbered structure exists, split on paragraph/line breaks.
+    3. If a single entry exceeds chunk_size, apply fixed-size splitting
+       with overlap as a last resort.
+    4. Drop anything shorter than MIN_CHUNK_LEN.
 
-    This respects natural document structure (Reddit comments, blog entries,
-    review paragraphs) and only subdivides text that genuinely needs it.
+    Collapsing lines within each entry (joining with a space) removes
+    spurious newlines that were diluting embedding quality.
     """
-    # Split on blank lines first, then on single newlines within each block
-    paragraphs = re.split(r"\n{2,}", text)
+    entries = _split_into_entries(text)
     chunks = []
 
-    for para in paragraphs:
-        # Further split on single line breaks (e.g. bullet lists, forum posts)
-        lines = [l.strip() for l in para.splitlines() if l.strip()]
-        para_text = " ".join(lines).strip()
+    for entry in entries:
+        # Collapse internal newlines so the entry reads as one clean paragraph
+        lines = [l.strip() for l in entry.splitlines() if l.strip()]
+        entry_text = " ".join(lines)
 
-        if not para_text or len(para_text) < MIN_CHUNK_LEN:
+        if not entry_text or len(entry_text) < MIN_CHUNK_LEN:
             continue
 
-        if len(para_text) <= chunk_size:
-            chunks.append(para_text)
+        if len(entry_text) <= chunk_size:
+            chunks.append(entry_text)
         else:
-            chunks.extend(_fixed_size_chunks(para_text, chunk_size, overlap))
+            chunks.extend(_fixed_size_chunks(entry_text, chunk_size, overlap))
 
     return chunks
 
