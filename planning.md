@@ -34,13 +34,13 @@ I chose the domain of best restaurants to eat on and around campus at Georgia Te
 ## Chunking Strategy
 
 **Chunk size:**
-400 characters
+500 characters
 
 **Overlap:**
-50 characters
+25 characters
 
 **Reasoning:**
-A 400 character chunk size was chosen because analysis of the 10 sources revealed that they all had a similar format of individual entries (ie bulleted paragraphs for restaurants or yelp reviews) so a fixed size chunk would be best. The average size of the entries in the blogs is a bit over 400 characters so I chose 400 with an overlap of 50 to capture the longest entries and threads under comments on reddit so that context isn't lost. I believe this strategy will work best across all sources but may fail to accurately capture the results on reddit threads with short comments which could be a limitation. I got around that limitation by asking Claude to also split by paragraphs when possible and then implement the chunk size when entries are too big.
+A 400 character chunk size was chosen because analysis of the 10 sources revealed that they all had a similar format of individual entries (ie bulleted paragraphs for restaurants or yelp reviews) so a fixed size chunk would be best. The average size of the entries in the blogs is a bit over 400 characters so I chose 400 with an overlap of 25 to capture the longest entries and threads under comments on reddit so that context isn't lost. I believe this strategy will work best across all sources but may fail to accurately capture the results on reddit threads with short comments which could be a limitation. I got around that limitation by asking Claude to also split by paragraphs when possible and then implement the chunk size when entries are too big.
 
 ---
 
@@ -63,7 +63,7 @@ If cost was no object I'd choose a model that could provide multilingual support
 
 | # | Question | Expected answer |
 |---|----------|-----------------|
-| 1 | What is the closest restaurant to the library? | Citation of the Odyssey article with blue donkey coffee  |
+| 1 | What is the closest restaurant to campus? | Citation of the Odyssey article with blue donkey coffee  |
 | 2 | What is the most budget-friendly option for food near campus?| Citation of the first source and publix subs, blue donkey, or halal guys  |
 | 3 | What are the best pizza places around campus? | Antico's, Attwoods |
 | 4 | What restaurants are open late near campus?  | Waffle house, Taco bell, Lucky Buddha |
@@ -84,7 +84,7 @@ If cost was no object I'd choose a model that could provide multilingual support
 
 Document Ingestion (online sources)
         ↓
-Chunking (200 chars, 50-char overlap)
+Chunking (500 chars, 25-char overlap)
         ↓
 Embedding (sentence-transformers / all-MiniLM-L6-v2)
         ↓
@@ -99,7 +99,7 @@ Generation (browser-based interface)
 
 
 **Milestone 3 — Ingestion and chunking:**
-I will give Claude my source list from planning.md, the requirements for cleaning up the data, and the chunking requirements of fixed-size chunks of 200 characters with 50-character overlap. I will ask it to create a python script that cleans up the text, chunks it using chunk_text() and my requirements and look at several of the chunk outputs to verify that the size is correct and looks consistent with my expectations.
+I will give Claude my source list from planning.md, the requirements for cleaning up the data, and the chunking requirements of fixed-size chunks of 500 characters with 25-character overlap. I will ask it to create a python script that cleans up the text, chunks it using chunk_text() and my requirements and look at several of the chunk outputs to verify that the size is correct and looks consistent with my expectations.
 
 **Milestone 4 — Embedding and retrieval:**
 I will give Claude my embedding model of choice, my chunking requirements from planning,md and my retrieval requirements. I will ask it to create a py file that embeds each chunk, stores the subsequent embeddings using my preferred vector store (chromaDB) and does the search. I'll then test using my evaluation questions to see if the sources are correct and the chunks that are chosen are relevant to the questions.
